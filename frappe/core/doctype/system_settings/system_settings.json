@@ -1027,7 +1027,7 @@
    "bold": 0, 
    "collapsible": 0, 
    "columns": 0, 
-   "default": "Frappe Framework", 
+   "default": "Framework", 
    "depends_on": "enable_two_factor_auth", 
    "fieldname": "otp_issuer_name", 
    "fieldtype": "Data", 

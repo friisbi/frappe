@@ -1,0 +1,136 @@
+name: Infinity Sync (The Chameleon Fix)
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch: # Avvio manuale
+  schedule:
+    - cron: '0 * * * *' # Ogni ora
+
+jobs:
+  infinity-chameleon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'Infinity Bot'
+          git config --global user.email 'bot@noreply.github.com'
+
+      - name: Autopilot Sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🕵️ Avvio Infinity Sync Chameleon..."
+
+          # --- 1. SETUP & SYNC ---
+          mkdir -p /tmp/my_workflows
+          cp .github/workflows/*.yml /tmp/my_workflows/ 2>/dev/null || true
+
+          UPSTREAM_URL=$(gh api "repos/${{ github.repository }}" --jq '.parent.clone_url' || true)
+          if [ -z "$UPSTREAM_URL" ] || [ "$UPSTREAM_URL" == "null" ]; then
+             REPO_NAME=$(echo "${{ github.repository }}" | awk -F '/' '{print $2}')
+             UPSTREAM_URL="https://github.com/frappe/${REPO_NAME}.git"
+          fi
+          
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch upstream
+
+          RAW_BRANCHES=$(git ls-remote --heads upstream | awk -F 'refs/heads/' '{print $2}')
+          TARGET_BRANCHES=()
+          for branch in $RAW_BRANCHES; do
+              if [[ "$branch" == "develop" ]] || [[ "$branch" == "main" ]] || [[ "$branch" == "master" ]] || \
+                 [[ "$branch" == "stable" ]] || [[ "$branch" == version-* ]] || [[ "$branch" == release* ]] || \
+                 [[ "$branch" == v[0-9]* ]]; then
+                  TARGET_BRANCHES+=("$branch")
+              fi
+          done
+
+          # --- 2. LOOP BRANCH ---
+          for BRANCH in "${TARGET_BRANCHES[@]}"; do
+             echo "🔄 Elaborazione: $BRANCH"
+             git checkout -B "$BRANCH" "upstream/$BRANCH"
+             
+             # A. PULIZIA
+             rm -rf .github/workflows/*.yml
+             mkdir -p .github/workflows
+             cp /tmp/my_workflows/* .github/workflows/
+             
+             # B. FIX DIPENDENZE
+             if [ -f "pyproject.toml" ]; then
+                sed -i 's|"frappe/\([^"]*\)"|"\1"|g' pyproject.toml 2>/dev/null || true
+             fi
+             if [ -f "hooks.py" ]; then
+                 sed -i "s|'frappe/\([^']*\)'|'\1'|g" hooks.py 2>/dev/null || true
+             fi
+
+             # C. HARD REBRAND FRONTEND
+             FILES=$(find . -type f \( -name "*.json" -o -name "*.js" -o -name "*.vue" -o -name "*.html" \) -not -path "*/node_modules/*")
+             if [ ! -z "$FILES" ]; then
+                 echo "$FILES" | xargs sed -i 's/Frappe Framework/Framework/g' 2>/dev/null || true
+                 echo "$FILES" | xargs sed -i 's/Frappe Cloud/Cloud/g' 2>/dev/null || true
+                 echo "$FILES" | xargs sed -i 's/ERPNext/ERP/g' 2>/dev/null || true
+             fi
+
+             # D. INIEZIONE BACKEND
+             if [ -f "hooks.py" ]; then
+                 echo "with open('hooks.py', 'a') as f:" > _inject.py
+                 echo "    f.write('\n\ntry:\n    _map={\"Frappe\":\"Framework\",\"Frappe Framework\":\"Framework\",\"ERPNext\":\"ERP\",\"Frappe Cloud\":\"Cloud\"}\n    _l=[\"en\",\"it\",\"fr\",\"de\",\"es\"]\n    override_translations={l:_map for l in _l}\nexcept:pass\n')" >> _inject.py
+                 python3 _inject.py
+                 rm _inject.py
+             fi
+
+             # F. IL CAMALEONTE (MutationObserver)
+             # Questo inietta uno script che osserva le modifiche alla pagina in tempo reale
+             # e sostituisce il testo anche se non è una traduzione.
+             
+             if [ -f "frappe/public/js/frappe/translate.js" ]; then
+                 echo "🦎 Iniettando il Camaleonte (MutationObserver)..."
+                 
+                 echo "with open('frappe/public/js/frappe/translate.js', 'a') as f:" > _js_patch.py
+                 echo "    f.write('\n\n// --- INFINITY CHAMELEON ---\n')" >> _js_patch.py
+                 echo "    f.write('try {\n')" >> _js_patch.py
+                 echo "    f.write('    const observer = new MutationObserver((mutations) => {\n')" >> _js_patch.py
+                 echo "    f.write('        mutations.forEach((mutation) => {\n')" >> _js_patch.py
+                 echo "    f.write('            if (mutation.type === \"childList\") {\n')" >> _js_patch.py
+                 echo "    f.write('                mutation.addedNodes.forEach((node) => {\n')" >> _js_patch.py
+                 echo "    f.write('                    if (node.nodeType === 3) { // Nodo di testo\n')" >> _js_patch.py
+                 echo "    f.write('                        if (node.nodeValue.includes(\"Frappe Framework\")) node.nodeValue = node.nodeValue.replace(/Frappe Framework/g, \"Framework\");\n')" >> _js_patch.py
+                 echo "    f.write('                    } else if (node.nodeType === 1) { // Elemento HTML\n')" >> _js_patch.py
+                 echo "    f.write('                        // Cerca dentro i workspace title e le card\n')" >> _js_patch.py
+                 echo "    f.write('                        const titles = node.querySelectorAll(\".workspace-title, .card-title, .ellipsis\");\n')" >> _js_patch.py
+                 echo "    f.write('                        titles.forEach(el => {\n')" >> _js_patch.py
+                 echo "    f.write('                            if (el.innerText.includes(\"Frappe Framework\")) el.innerText = el.innerText.replace(/Frappe Framework/g, \"Framework\");\n')" >> _js_patch.py
+                 echo "    f.write('                        });\n')" >> _js_patch.py
+                 echo "    f.write('                    }\n')" >> _js_patch.py
+                 echo "    f.write('                });\n')" >> _js_patch.py
+                 echo "    f.write('            }\n')" >> _js_patch.py
+                 echo "    f.write('        });\n')" >> _js_patch.py
+                 echo "    f.write('    });\n')" >> _js_patch.py
+                 echo "    f.write('    observer.observe(document.body, { childList: true, subtree: true });\n')" >> _js_patch.py
+                 echo "    f.write('} catch(e) { console.log(\"Chameleon error\", e); }\n')" >> _js_patch.py
+                 
+                 python3 _js_patch.py
+                 rm _js_patch.py
+             fi
+
+             # COMMIT & PUSH
+             git add .
+             git commit -m "Auto-fix: Sync & Chameleon ($BRANCH)" || echo "⚠️ $BRANCH già aggiornato."
+             
+             # TAGS
+             APP_VERSION=$(grep -r "__version__ =" . --include="__init__.py" | head -n 1 | awk -F "'" '{print $2}')
+             if [ ! -z "$APP_VERSION" ]; then
+                 TAG_NAME="v$APP_VERSION"
+                 git tag -f "$TAG_NAME"
+                 git push -f origin "$TAG_NAME" || echo "⚠️ Tag esistente."
+             fi
+
+             git push -f origin "$BRANCH"
+          done
