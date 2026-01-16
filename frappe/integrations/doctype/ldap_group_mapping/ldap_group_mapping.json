@@ -19,7 +19,7 @@
    "fieldname": "erpnext_role",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "ERPNext Role",
+   "label": "ERP Role",
    "options": "Role",
    "reqd": 1
   }

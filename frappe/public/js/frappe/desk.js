@@ -477,7 +477,7 @@ frappe.Application = Class.extend({
 		// 		[<version>, <change_log in markdown>],
 		// 	],
 		// 	"description": "ERP made simple",
-		// 	"title": "ERPNext",
+		// 	"title": "ERP",
 		// 	"version": "12.2.0"
 		// }];
 
