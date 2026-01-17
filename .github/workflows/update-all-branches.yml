@@ -73,7 +73,7 @@ jobs:
              find /tmp/custom_workflows -name '*.yml' -exec cp {} .github/workflows/ \; 2>/dev/null || echo "  No custom workflows to restore"
              
              # Check if there are changes to commit
-             if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
+             if [ -n "$(git status --porcelain)" ]; then
                git add .github/workflows/ 2>/dev/null || true
                git commit -m "Update branch $BRANCH from upstream" || echo "  No changes to commit"
              fi
