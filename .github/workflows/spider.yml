@@ -1,0 +1,108 @@
+name: Spider Frontend Only
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  run-spider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Auto-Detect & Configure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. RILEVAMENTO FONTE
+          UPSTREAM_URL=""
+          
+          # Tentativo API
+          PARENT_INFO=$(gh repo view ${{ github.repository }} --json parent --jq '.parent.url' 2>/dev/null || true)
+          if [ -n "$PARENT_INFO" ] && [ "$PARENT_INFO" != "null" ]; then
+              UPSTREAM_URL="$PARENT_INFO"
+          fi
+
+          # Fallback Cartelle
+          if [ -z "$UPSTREAM_URL" ]; then
+              if [ -d "frappe" ] && [ -f "frappe/app.py" ]; then
+                  UPSTREAM_URL="https://github.com/frappe/frappe.git"
+              elif [ -d "erpnext" ]; then
+                  UPSTREAM_URL="https://github.com/frappe/erpnext.git"
+              else
+                  UPSTREAM_URL="https://github.com/frappe/frappe.git"
+              fi
+          fi
+
+          # 2. REGOLE "FRONTEND ONLY"
+          BASENAME=$(basename "$UPSTREAM_URL" .git)
+          
+          case "$BASENAME" in
+            "frappe")
+              OLD_BRAND="Frappe Framework"
+              NEW_BRAND="Frameworks"
+              ;;
+            "erpnext")
+              OLD_BRAND="ERPNext"
+              NEW_BRAND="ERP"
+              ;;
+            "hrms")
+              OLD_BRAND="HRMS"
+              NEW_BRAND="Infinity HRMS"
+              ;;
+            *)
+              OLD_BRAND="$(tr '[:lower:]' '[:upper:]' <<< ${BASENAME:0:1})${BASENAME:1}"
+              NEW_BRAND="Infinity $OLD_BRAND"
+              ;;
+          esac
+
+          echo "🔗 Fonte: $UPSTREAM_URL"
+          echo "🦎 Rebrand Frontend: '$OLD_BRAND' -> '$NEW_BRAND'"
+
+          # 3. SINCRONIZZAZIONE
+          cp .github/workflows/spider.yml /tmp/spider_backup.yml
+
+          git config --global user.name 'Bot'
+          git config --global user.email 'bot@noreply.com'
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream $UPSTREAM_URL
+          git fetch upstream
+
+          RAW_BRANCHES=$(git branch -r | grep 'upstream/' | grep -v 'HEAD')
+          BRANCHES=$(echo "$RAW_BRANCHES" | sed 's/upstream\///g')
+
+          for BRANCH in $BRANCHES; do
+             BRANCH=$(echo "$BRANCH" | xargs)
+             if [ -z "$BRANCH" ]; then continue; fi
+             
+             echo "🕷️ Processing: $BRANCH"
+             
+             if git rev-parse --verify upstream/$BRANCH >/dev/null 2>&1; then
+                git checkout -B $BRANCH upstream/$BRANCH
+             else
+                continue
+             fi
+
+             rm -rf .github/workflows/*
+             mkdir -p .github/workflows
+             cp /tmp/spider_backup.yml .github/workflows/spider.yml
+
+             # === IL FILTRO DI SICUREZZA ===
+             # Agisce SOLO su .js, .vue, .html (Frontend)
+             # ESCLUDE: .py (Python), .json (Database/Config), .sql
+             find . -type f \( -name "*.js" -o -name "*.vue" -o -name "*.html" \) -not -path "*/node_modules/*" -exec sed -i "s/$OLD_BRAND/$NEW_BRAND/g" {} +
+             
+             # FIX JS RUNTIME
+             if [ -f "frappe/public/js/frappe/translate.js" ]; then
+                printf "\n\n//FIX\nsetTimeout(()=>{const r=(t)=>t.replace(/$OLD_BRAND/g,\"$NEW_BRAND\");const w=document.createTreeWalker(document.body,4);let n;while(n=w.nextNode())if(n.nodeValue&&n.nodeValue.includes(\"$OLD_BRAND\"))n.nodeValue=r(n.nodeValue);},500);" >> frappe/public/js/frappe/translate.js
+             fi
+
+             git add .
+             git commit -m "Frontend Rebrand: $OLD_BRAND to $NEW_BRAND" || echo "Skip"
+             git push -f origin $BRANCH
+          done
