@@ -31,7 +31,7 @@ jobs:
           # 1. SAVE CUSTOM WORKFLOWS
           echo "📦 Saving custom workflows..."
           mkdir -p /tmp/custom_workflows
-          cp .github/workflows/*.yml /tmp/custom_workflows/ || echo "No workflows to save"
+          find .github/workflows -name '*.yml' -exec cp {} /tmp/custom_workflows/ \; 2>/dev/null || echo "No workflows to save"
 
           # 2. SETUP UPSTREAM
           echo "🔗 Setting up upstream repository..."
@@ -70,11 +70,11 @@ jobs:
              # Restore custom workflows
              echo "  📥 Restoring custom workflows..."
              mkdir -p .github/workflows
-             cp /tmp/custom_workflows/*.yml .github/workflows/ 2>/dev/null || echo "  No custom workflows to restore"
+             find /tmp/custom_workflows -name '*.yml' -exec cp {} .github/workflows/ \; 2>/dev/null || echo "  No custom workflows to restore"
              
              # Check if there are changes to commit
              if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
-               git add .github/workflows/*.yml 2>/dev/null || true
+               git add .github/workflows/ 2>/dev/null || true
                git commit -m "Update branch $BRANCH from upstream" || echo "  No changes to commit"
              fi
              
