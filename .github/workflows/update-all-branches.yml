@@ -29,18 +29,13 @@ jobs:
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
           
-          # 1. SAVE CUSTOM WORKFLOWS
-          echo "📦 Saving custom workflows..."
-          mkdir -p /tmp/custom_workflows
-          find .github/workflows -name '*.yml' -exec cp {} /tmp/custom_workflows/ \; 2>/dev/null || echo "No workflows to save"
-
-          # 2. SETUP UPSTREAM
+          # 1. SETUP UPSTREAM
           echo "🔗 Setting up upstream repository..."
           git remote remove upstream 2>/dev/null || true
           git remote add upstream $UPSTREAM_URL
           git fetch upstream
 
-          # 3. IDENTIFY TARGET BRANCHES
+          # 2. IDENTIFY TARGET BRANCHES
           echo "🔍 Identifying branches to update..."
           TARGET_BRANCHES=$(git branch -r | grep 'upstream/' | grep -v 'HEAD' | grep -E 'upstream/develop$|upstream/version-[0-9]+$|upstream/v[0-9]+$' | sed 's/upstream\///g')
 
@@ -52,7 +47,7 @@ jobs:
           echo "📋 Branches to update:"
           echo "$TARGET_BRANCHES"
 
-          # 4. UPDATE EACH BRANCH
+          # 3. UPDATE EACH BRANCH
           for BRANCH in $TARGET_BRANCHES; do
              # Trim whitespace
              BRANCH="${BRANCH#"${BRANCH%%[![:space:]]*}"}"
@@ -69,17 +64,6 @@ jobs:
              # Check out the upstream branch
              echo "  ↓ Fetching latest from upstream/$BRANCH..."
              git checkout -B $BRANCH upstream/$BRANCH
-             
-             # Restore custom workflows
-             echo "  📥 Restoring custom workflows..."
-             mkdir -p .github/workflows
-             find /tmp/custom_workflows -name '*.yml' -exec cp {} .github/workflows/ \; 2>/dev/null || echo "  No custom workflows to restore"
-             
-             # Check if there are changes to commit
-             if [ -n "$(git status --porcelain)" ]; then
-               git add .github/workflows/
-               git commit -m "Update branch $BRANCH from upstream" || echo "  No changes to commit"
-             fi
              
              # Push to origin
              echo "  ↑ Pushing to origin/$BRANCH..."
