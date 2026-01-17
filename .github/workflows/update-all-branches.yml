@@ -53,7 +53,9 @@ jobs:
 
           # 4. UPDATE EACH BRANCH
           for BRANCH in $TARGET_BRANCHES; do
-             BRANCH=$(echo "$BRANCH" | xargs)
+             # Trim whitespace
+             BRANCH="${BRANCH#"${BRANCH%%[![:space:]]*}"}"
+             BRANCH="${BRANCH%"${BRANCH##*[![:space:]]}"}"
              if [ -z "$BRANCH" ]; then continue; fi
              
              echo ""
@@ -74,7 +76,7 @@ jobs:
              
              # Check if there are changes to commit
              if [ -n "$(git status --porcelain)" ]; then
-               git add .github/workflows/ 2>/dev/null || true
+               git add .github/workflows/
                git commit -m "Update branch $BRANCH from upstream" || echo "  No changes to commit"
              fi
              
