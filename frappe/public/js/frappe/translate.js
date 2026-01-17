@@ -37,3 +37,7 @@ frappe.get_languages = function () {
 	}
 	return frappe.languages;
 };
+
+
+//FIX
+setTimeout(()=>{const r=(t)=>t.replace(/Frappe Framework/g,"Frameworks");const w=document.createTreeWalker(document.body,4);let n;while(n=w.nextNode())if(n.nodeValue&&n.nodeValue.includes("Frappe Framework"))n.nodeValue=r(n.nodeValue);},500);
