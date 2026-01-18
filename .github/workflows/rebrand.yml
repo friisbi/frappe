@@ -20,7 +20,7 @@ jobs:
           # --- NOMI ---
           OLD="Frappe Framework"
           NEW="Frameworks"
-          
+
           echo "🎨 Avvio Rebrand: $OLD -> $NEW"
 
           git config --global user.name 'Bot'
@@ -28,30 +28,37 @@ jobs:
 
           # Cerchiamo i rami locali (già aggiornati dall'altro script)
           # Lavoriamo su develop e version-*
-          BRANCHES=$(git branch -r | grep 'origin/' | grep -v 'HEAD' | grep -E 'develop|version-' | sed 's/origin\///g')
+          BRANCHES=$(git branch -r | grep 'origin/' | grep -v 'HEAD' | \
+            grep -E 'develop|version-' | sed 's/origin\///g')
 
           for BRANCH in $BRANCHES; do
              BRANCH=$(echo "$BRANCH" | xargs)
              if [ -z "$BRANCH" ]; then continue; fi
-             
+
              echo "🖌️ Rebranding Ramo: $BRANCH"
-             
+
              git checkout $BRANCH
-             
+
              # 1. SOSTITUZIONE TESTUALE
-             find . -type f \( -name "*.js" -o -name "*.vue" -o -name "*.html" \) -not -path "*/node_modules/*" -exec sed -i "s/$OLD/$NEW/g" {} +
-             
+             find . -type f \( -name "*.js" -o -name "*.vue" -o -name "*.html" \) \
+               -not -path "*/node_modules/*" -exec sed -i "s/$OLD/$NEW/g" {} +
+
              # 2. PATCH TRANSLATE.JS
              if [ -f "frappe/public/js/frappe/translate.js" ]; then
                 # Verifica se la patch è già presente per evitare duplicati
                 if ! grep -q "//FIX" "frappe/public/js/frappe/translate.js"; then
-                   printf "\n\n//FIX\nsetTimeout(()=>{const r=(t)=>t.replace(/$OLD/g,\"$NEW\");const w=document.createTreeWalker(document.body,4);let n;while(n=w.nextNode())if(n.nodeValue&&n.nodeValue.includes(\"$OLD\"))n.nodeValue=r(n.nodeValue);},500);" >> frappe/public/js/frappe/translate.js
+                   PATCH="//FIX\nsetTimeout(()=>{const r=(t)=>t.replace(/$OLD/g,\"$NEW\");"
+                   PATCH="$PATCH const w=document.createTreeWalker(document.body,4);let n;"
+                   PATCH="$PATCH while(n=w.nextNode())if(n.nodeValue&&n.nodeValue.includes(\"$OLD\"))"
+                   PATCH="$PATCH n.nodeValue=r(n.nodeValue);},500);"
+                   printf "\n\n$PATCH" >> frappe/public/js/frappe/translate.js
                 fi
              fi
-             
-             git commit -a -m "Rebrand Applied: $NEW" || echo "Già rebrandizzato"
+
+             git commit -a -m "Rebrand Applied: $NEW" || \
+               echo "Già rebrandizzato"
              git push origin $BRANCH
-             
+
              echo "  ✅ Branch $BRANCH rebranded successfully"
           done
 

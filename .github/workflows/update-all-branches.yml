@@ -23,12 +23,12 @@ jobs:
         run: |
           # --- CONFIGURATION ---
           UPSTREAM_URL="https://github.com/frappe/frappe.git"
-          
+
           echo "🚀 Starting Branch Update Process..."
 
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
-          
+
           # 1. SETUP UPSTREAM
           echo "🔗 Setting up upstream repository..."
           git remote remove upstream 2>/dev/null || true
@@ -37,7 +37,9 @@ jobs:
 
           # 2. IDENTIFY TARGET BRANCHES
           echo "🔍 Identifying branches to update..."
-          TARGET_BRANCHES=$(git branch -r | grep 'upstream/' | grep -v 'HEAD' | grep -E 'upstream/develop$|upstream/version-[0-9]+$|upstream/v[0-9]+$' | sed 's/upstream\///g')
+          TARGET_BRANCHES=$(git branch -r | grep 'upstream/' | grep -v 'HEAD' | \
+            grep -E 'upstream/develop$|upstream/version-[0-9]+$|upstream/v[0-9]+$' | \
+            sed 's/upstream\///g')
 
           if [ -z "$TARGET_BRANCHES" ]; then
             echo "⚠️ No target branches found to update"
@@ -53,10 +55,10 @@ jobs:
              BRANCH="${BRANCH#"${BRANCH%%[![:space:]]*}"}"
              BRANCH="${BRANCH%"${BRANCH##*[![:space:]]}"}"
              if [ -z "$BRANCH" ]; then continue; fi
-             
+
              echo ""
              echo "🔧 Processing branch: $BRANCH"
-             
+
              # Clean working directory
              git reset --hard
              git clean -fd
@@ -64,11 +66,11 @@ jobs:
              # Check out the upstream branch
              echo "  ↓ Fetching latest from upstream/$BRANCH..."
              git checkout -B $BRANCH upstream/$BRANCH
-             
+
              # Push to origin
              echo "  ↑ Pushing to origin/$BRANCH..."
              git push -f origin $BRANCH
-             
+
              echo "  ✅ Branch $BRANCH updated successfully"
           done
 
