@@ -62,9 +62,30 @@ jobs:
              git reset --hard
              git clean -fd
 
+             # Save our custom workflows before checking out upstream
+             echo "  💾 Saving custom workflows..."
+             mkdir -p /tmp/custom_workflows
+             if [ -d ".github/workflows" ]; then
+               cp -r .github/workflows/* /tmp/custom_workflows/ 2>/dev/null || true
+             fi
+
              # Check out the upstream branch
              echo "  ↓ Fetching latest from upstream/$BRANCH..."
              git checkout -B $BRANCH upstream/$BRANCH
+
+             # Remove upstream workflow files to avoid permission issues
+             echo "  🗑️ Removing upstream workflow files..."
+             git rm -rf .github/workflows 2>/dev/null || true
+             rm -rf .github/workflows 2>/dev/null || true
+
+             # Restore our custom workflows
+             echo "  ♻️ Restoring custom workflows..."
+             mkdir -p .github/workflows
+             cp /tmp/custom_workflows/* .github/workflows/ 2>/dev/null || true
+             git add .github/workflows/
+
+             # Commit the workflow changes if any
+             git commit -m "Preserve custom workflows for $BRANCH" || echo "  ℹ️ No workflow changes needed"
 
              # Push to origin
              echo "  ↑ Pushing to origin/$BRANCH..."
