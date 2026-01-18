@@ -62,9 +62,9 @@ jobs:
              # Applicazione Codice
              git checkout -B $BRANCH $SAFE_COMMIT
 
-             # FIX PERMESSI (Rimozione file protetti originali)
-             git rm -rf .github || true
-             rm -rf .github || true
+             # FIX PERMESSI (Rimozione file workflow upstream originali)
+             git rm -rf .github/workflows || true
+             rm -rf .github/workflows || true
 
              # 4. RIPRISTINO DEI TUOI WORKFLOW
              mkdir -p .github/workflows
