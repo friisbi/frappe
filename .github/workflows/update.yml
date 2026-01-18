@@ -1,0 +1,83 @@
+name: 1. System Updater (Time Travel)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Reset Code to Jan 10
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # --- CONFIGURAZIONE ---
+          UPSTREAM_URL="https://github.com/frappe/frappe.git"
+
+          echo "🚀 Avvio Update (Reset al 10 Gennaio)..."
+
+          git config --global user.name 'Bot'
+          git config --global user.email 'bot@noreply.com'
+
+          # 1. SALVATAGGIO DEI TUOI WORKFLOW
+          # Salviamo TUTTI i file .yml che hai creato
+          # Così non vengono persi quando cancelliamo .github originale
+          mkdir -p /tmp/my_workflows
+          cp .github/workflows/*.yml /tmp/my_workflows/
+
+          # 2. COLLEGAMENTO UPSTREAM
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream $UPSTREAM_URL
+          git fetch upstream
+
+          # 3. ELABORAZIONE RAMI (develop e version-*)
+          TARGET_BRANCHES=$(git branch -r | grep 'upstream/' | \
+            grep -v 'HEAD' | \
+            grep -E 'upstream/develop$|upstream/version-[0-9]+$|upstream/v[0-9]+$' | \
+            sed 's/upstream\///g')
+
+          for BRANCH in $TARGET_BRANCHES; do
+             BRANCH=$(echo "$BRANCH" | xargs)
+             if [ -z "$BRANCH" ]; then continue; fi
+
+             echo "🔧 Aggiornamento Ramo: $BRANCH"
+
+             # Pulizia memoria
+             git reset --hard
+             git clean -fd
+
+             # TIME TRAVEL (Fix SyntaxError)
+             SAFE_COMMIT=$(git rev-list -n 1 \
+               --before="2025-01-10 23:59" upstream/$BRANCH)
+             if [ -z "$SAFE_COMMIT" ]; then
+               SAFE_COMMIT="upstream/$BRANCH"
+             fi
+
+             # Applicazione Codice
+             git checkout -B $BRANCH $SAFE_COMMIT
+
+             # FIX PERMESSI (Rimozione file workflow upstream originali)
+             git rm -rf .github/workflows || true
+             rm -rf .github/workflows || true
+
+             # 4. RIPRISTINO DEI TUOI WORKFLOW
+             mkdir -p .github/workflows
+             cp /tmp/my_workflows/*.yml .github/workflows/
+             git add .github/workflows/*.yml
+
+             # Invio (Senza Rebrand, solo codice pulito)
+             git commit -m "System Update (Jan 10): $BRANCH" || \
+               echo "No changes"
+             git push -f origin $BRANCH
+
+             echo "  ✅ Branch $BRANCH updated successfully"
+          done
+
+          echo ""
+          echo "🎉 All branches updated successfully!"
