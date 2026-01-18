@@ -68,4 +68,9 @@ jobs:
              # Invio (Senza Rebrand, solo codice pulito)
              git commit -m "System Update (Jan 10): $BRANCH" || echo "No changes"
              git push -f origin $BRANCH
+             
+             echo "  ✅ Branch $BRANCH updated successfully"
           done
+
+          echo ""
+          echo "🎉 All branches updated successfully!"

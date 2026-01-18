@@ -51,4 +51,9 @@ jobs:
              
              git commit -a -m "Rebrand Applied: $NEW" || echo "Già rebrandizzato"
              git push origin $BRANCH
+             
+             echo "  ✅ Branch $BRANCH rebranded successfully"
           done
+
+          echo ""
+          echo "🎉 All branches rebranded successfully!"
